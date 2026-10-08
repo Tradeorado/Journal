@@ -1,0 +1,884 @@
+<!doctype html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Trading-Journal</title>
+<style>
+  :root{
+    --bg:#0f1115; --card:#1a1d24; --border:#2a2e38;
+    --text:#e8eaed; --muted:#9aa0ac;
+    --pos:#3ddc84; --neg:#ff5c5c; --accent:#5b8cff; --warn:#ff9d3d;
+  }
+  *{box-sizing:border-box}
+  body{
+    background:var(--bg); color:var(--text);
+    font-family:-apple-system,Segoe UI,Roboto,Arial,sans-serif;
+    margin:0; padding:0 16px 60px; display:flex; justify-content:center;
+  }
+  .wrap{max-width:760px; width:100%}
+  .topnav{display:flex; align-items:center; justify-content:space-between; padding:20px 0; border-bottom:1px solid var(--border); margin-bottom:24px; flex-wrap:wrap; gap:10px}
+  .brand{font-weight:700; font-size:1.05rem}
+  .links{display:flex; flex-wrap:wrap; gap:4px}
+  .links button{
+    background:none; border:none; color:var(--muted); cursor:pointer; font-size:.9rem;
+    padding:6px 10px; border-bottom:2px solid transparent; font-family:inherit;
+  }
+  .links button:hover, .links button.active{color:var(--text); border-bottom-color:var(--accent)}
+  .gear{background:none; border:none; color:var(--muted); cursor:pointer; font-size:1.2rem; padding:4px 8px; line-height:1}
+  .gear:hover{color:var(--text)}
+  .modal-bg{position:fixed; inset:0; background:rgba(0,0,0,.55); z-index:50; display:flex; align-items:flex-start; justify-content:center; overflow-y:auto; padding:40px 16px}
+  .modal-bg.hidden{display:none}
+  .modal{position:relative; background:var(--bg,#111); border:1px solid var(--border); border-radius:12px; padding:20px; width:100%; max-width:620px}
+  .modal-close{position:absolute; top:10px; right:12px; background:none; border:none; color:var(--muted); cursor:pointer; font-size:1.1rem}
+  .view{display:none}
+  .view.active{display:block}
+  h1{font-size:1.3rem; margin:0 0 4px}
+  h2{font-size:1rem; margin:0 0 10px}
+  .sub{color:var(--muted); font-size:.85rem; margin-bottom:20px}
+  .card{background:var(--card); border:1px solid var(--border); border-radius:12px; padding:20px; margin-bottom:16px}
+  label{display:block; font-size:.8rem; color:var(--muted); margin-bottom:6px}
+  .field{margin-bottom:14px}
+  input[type=number], input[type=date], input[type=text], select, textarea{
+    width:100%; background:#11141a; border:1px solid var(--border); color:var(--text);
+    font-size:1.05rem; padding:10px 12px; border-radius:8px; font-family:inherit;
+  }
+  textarea{resize:vertical}
+  input:focus, select:focus, textarea:focus{outline:none; border-color:var(--accent)}
+  .row{display:grid; grid-template-columns:1fr 1fr; gap:12px}
+  .row3{display:grid; grid-template-columns:1fr 1fr 1fr 2fr; gap:10px}
+  .field-row{display:flex; gap:16px; flex-wrap:wrap; margin-bottom:14px}
+  .field-row .field{flex:1; min-width:160px; margin-bottom:0}
+  .checkbox{display:flex; align-items:center; gap:8px; font-size:.9rem; margin-bottom:10px}
+  .checkbox input{width:auto}
+  .result-grid{display:grid; grid-template-columns:1fr 1fr; gap:12px; margin-top:8px}
+  .hide-notes .col-notiz{display:none}
+  #kr-grid{grid-template-columns:repeat(3,minmax(0,1fr))}
+  .stat{background:#11141a; border:1px solid var(--border); border-radius:8px; padding:12px}
+  .stat .l{font-size:.75rem; color:var(--muted); margin-bottom:4px}
+  .stat .v{font-size:1.15rem; font-weight:600}
+  .stat .v.small{font-size:.95rem}
+  .pos{color:var(--pos)}
+  .neg{color:var(--neg)}
+  .good{color:var(--pos)}
+  .bad{color:var(--neg)}
+  .warn{color:var(--warn)}
+  .muted{color:var(--muted)}
+  .big{grid-column:1/-1; text-align:center; padding:18px}
+  .big .v{font-size:2rem}
+  table{width:100%; border-collapse:collapse; margin-top:4px; font-size:.85rem}
+  th,td{text-align:right; padding:6px 8px; border-bottom:1px solid var(--border)}
+  th:first-child,td:first-child,th:nth-child(2),td:nth-child(2){text-align:left}
+  th{color:var(--muted); font-weight:500}
+  tr.no-ritual td{background:rgba(255,92,92,.16)}
+  tr.no-ritual td:first-child{box-shadow:inset 3px 0 0 var(--neg)}
+  .toggle{cursor:pointer; color:var(--accent); font-size:.85rem; margin-top:8px; display:inline-block}
+  .hidden{display:none}
+  .empty{color:var(--muted); font-size:.85rem; padding:8px 0}
+  button{background:var(--accent); color:#fff; border:none; border-radius:8px; padding:10px 16px; font-size:.9rem; cursor:pointer; font-weight:600; font-family:inherit}
+  button.secondary{background:#2a2e38; color:var(--text)}
+  button.danger{background:transparent; color:var(--neg); padding:4px 8px; font-weight:400}
+  .toolbar{display:flex; gap:10px; margin-top:12px; flex-wrap:wrap}
+  .notice{background:rgba(91,140,255,.1); border:1px solid rgba(91,140,255,.3); border-radius:8px; padding:12px 16px; font-size:.85rem; color:var(--muted); margin-bottom:16px}
+
+  /* Chunk-Treppe */
+  .ladder{display:flex; flex-direction:column; gap:8px}
+  .step{display:grid; grid-template-columns:150px 1fr auto; align-items:center; gap:10px; background:#11141a; border:1px solid var(--border); border-radius:8px; padding:10px 14px}
+  .step .name{font-size:.8rem; color:var(--muted)}
+  .step .bar-wrap{background:#0a0c10; border-radius:6px; overflow:hidden; height:10px}
+  .step .bar{height:100%; border-radius:6px; transition:width .2s}
+  .step .amt{font-weight:600; font-size:.95rem; text-align:right; min-width:90px}
+
+  /* Ruin */
+  .ruin-flash{background:#2a1216; border:1px solid var(--neg); border-radius:8px; padding:14px; margin:0 0 16px}
+  .ruin-flash .headline{color:var(--neg); font-weight:700; font-size:1.1rem}
+
+  /* Reframe */
+  .reframe-box{background:#11141a; border:1px solid var(--border); border-radius:10px; padding:16px; margin:16px 0}
+  .toast{position:fixed; bottom:24px; left:50%; transform:translateX(-50%); background:var(--card); border:1px solid var(--border); color:var(--text); padding:10px 18px; border-radius:8px; font-size:.9rem; opacity:0; pointer-events:none; transition:opacity .2s ease}
+  .toast.show{opacity:1}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <nav class="topnav">
+    <div class="brand">Trading-Journal</div>
+    <div class="links">
+      <button data-view="ritual" class="active">Ritual</button>
+      <button data-view="trades">Trades</button>
+      <button data-view="prognose">Prognose</button>
+    </div>
+    <button class="gear" id="gear-btn" title="Einstellungen &amp; Datensicherung" aria-label="Einstellungen">⚙</button>
+  </nav>
+
+  <!-- RITUAL -->
+  <section id="view-ritual" class="view active">
+    <h1 id="ritual-title">Ritual</h1>
+    <div id="ritual-notice"></div>
+
+    <form id="ritual-form">
+      <div class="field">
+        <label for="r-gedanke">Der Gedanke, den du heute untersuchst</label>
+        <input type="text" id="r-gedanke" placeholder="z.B. Ein Stop Loss nimmt mir meinen Gewinn weg.">
+      </div>
+      <div class="field">
+        <label for="q1">1. Ist es wahr?</label>
+        <textarea id="q1" rows="3"></textarea>
+      </div>
+      <div class="field">
+        <label for="q2">2. Kann ich absolut sicher sein, dass das wahr ist?</label>
+        <textarea id="q2" rows="3"></textarea>
+      </div>
+      <div class="field">
+        <label for="q3">3. Wie reagiere ich - was passiert - wenn ich diesen Gedanken glaube?</label>
+        <textarea id="q3" rows="3"></textarea>
+      </div>
+      <div class="field">
+        <label for="q4">4. Wer wäre ich in diesem Trade ohne diesen Gedanken?</label>
+        <textarea id="q4" rows="3"></textarea>
+      </div>
+
+      <div class="reframe-box">
+        <label for="r-reframe">Reframe-Satz für heute</label>
+        <input type="text" id="r-reframe" placeholder="z.B. Ich schütze mein Kapital, indem ich bei jedem Trade einen SL setze.">
+        <label class="checkbox" style="margin-top:10px">
+          <input type="checkbox" id="reframe_bestaetigt">
+          Ich habe den Satz gelesen und nehme ihn mit in den Trading-Tag.
+        </label>
+      </div>
+
+      <button type="submit">Ritual für heute abschließen</button>
+    </form>
+  </section>
+
+  <!-- TRADES -->
+  <section id="view-trades" class="view">
+    <h1>Trade eintragen</h1>
+
+    <form id="trade-form">
+      <div class="field-row">
+        <div class="field">
+          <label for="t-date">Datum</label>
+          <input type="date" id="t-date" required>
+        </div>
+        <div class="field">
+          <label for="t-symbol">Symbol</label>
+          <select id="t-symbol">
+            <option value="DAX">DAX</option>
+            <option value="NAS100">NAS100</option>
+          </select>
+        </div>
+        <div class="field">
+          <label for="t-amount">G/V (EUR)</label>
+          <input type="number" id="t-amount" step="1" placeholder="z.B. 45 oder -30" required>
+        </div>
+      </div>
+      <div class="field-row">
+        <label class="checkbox"><input type="checkbox" id="t-sl-gesetzt" checked> Stop Loss war vor Orderausführung gesetzt</label>
+        <label class="checkbox"><input type="checkbox" id="t-sl-stand" checked> Stop Loss stand - wurde nicht verschoben oder ignoriert</label>
+      </div>
+      <div class="field">
+        <label for="t-notiz">Notiz</label>
+        <textarea id="t-notiz" rows="2" placeholder="Optional: Setup, Grund, Emotion während des Trades"></textarea>
+      </div>
+      <button type="submit">Trade speichern</button>
+    </form>
+
+    <div class="card" style="margin-top:24px">
+      <h2>Alle Trades</h2>
+      <label class="checkbox" style="margin-bottom:10px"><input type="checkbox" id="t-show-notes" checked> Notizen anzeigen</label>
+      <div id="all-trades"></div>
+    </div>
+  </section>
+
+  <!-- PROGNOSE -->
+  <section id="view-prognose" class="view">
+    <h1>Vom Trade zu <span class="mN">63</span> Monaten</h1>
+    <div class="sub">Klein und stetig schlägt groß und riskant. Chunking zeigt das Ausmaß eines einzelnen Trades im großen Bild.</div>
+
+    <div class="ruin-flash"><div class="headline">Kein Handel mehr möglich, wenn Verluste dauerhaft ein Vielfaches der Gewinne übersteigen!</div></div>
+
+    <div class="card">
+      <h2>Prognose: diszipliniert bis in <span class="mN">63</span> Monate</h2>
+      <div class="row">
+        <div class="field">
+          <label for="progDaily">Ø Gewinn pro Handelstag für die Prognose (EUR)</label>
+          <input type="number" id="progDaily" step="1">
+          <span class="toggle" id="progDailyReset" style="display:inline-block; margin-top:6px">↺ Auf Durchschnitt zurücksetzen</span>
+        </div>
+      </div>
+      <div class="sub" style="margin-bottom:12px">Trading-Gewinn automatisch aus Journal (Gesamt-G/V ÷ Handelstage), überschreibbar. Gehalt wird als Jahresgehalt ÷ 12 monatlich über <span class="mN">63</span> Monate addiert. Hochrechnung linear, kein Zinseszins.</div>
+      <div class="result-grid">
+        <div class="stat"><div class="l" id="progMonthlyLabel">Trading-Gewinn/Monat</div><div class="v" id="progMonthly">–</div></div>
+        <div class="stat"><div class="l">Gewinn/Verlust diesen Monat (bisher)</div><div class="v" id="progMonthSum">–</div></div>
+        <div class="stat"><div class="l">Gehalt/Monat</div><div class="v" id="progSalaryMonthly">–</div></div>
+        <div class="stat"><div class="l">Enddatum (+<span class="mN">63</span> Monate)</div><div class="v" id="progEndDate">–</div></div>
+        <div class="result-grid" style="grid-column:1/-1; grid-template-columns:repeat(3,minmax(0,1fr)); margin-top:0">
+          <div class="stat"><div class="l">Kontostand heute</div><div class="v" id="progStart">–</div></div>
+          <div class="stat"><div class="l">Summe Trading-G/V über <span class="mN">63</span> Monate</div><div class="v" id="progTotal">–</div></div>
+          <div class="stat"><div class="l">Summe Gehalt über <span class="mN">63</span> Monate</div><div class="v" id="progSalaryTotal">–</div></div>
+        </div>
+        <div class="stat big" id="progFinalBox">
+          <div class="l">Prognostizierter Kontostand nach <span class="mN">63</span> Monaten (Trading + Gehalt)</div>
+          <div class="v" id="progFinal">–</div>
+        </div>
+      </div>
+      <span class="toggle" id="toggleProg">Monatsdetails anzeigen ▾</span>
+      <table id="progTable" class="hidden">
+        <thead><tr><th>Monat</th><th>Datum</th><th>Kum. Trading-G/V</th><th>Kum. Gehalt</th><th>Kontostand</th></tr></thead>
+        <tbody id="progBody"></tbody>
+      </table>
+    </div>
+
+  </section>
+
+  <!-- SETTINGS -->
+  <div class="modal-bg hidden" id="settings-modal">
+   <div class="modal">
+    <button class="modal-close" id="gear-close" aria-label="Schließen">✕</button>
+    <h1>Einstellungen</h1>
+
+    <div class="card">
+      <h2>Prognose-Parameter</h2>
+      <div class="row">
+        <div class="field">
+          <label for="progMonths">Anzahl Monate</label>
+          <input type="number" id="progMonths" step="1" min="1" max="600">
+        </div>
+        <div class="field">
+          <label for="progDaysWeek">Handelstage pro Woche (Monat = Woche × 4)</label>
+          <select id="progDaysWeek">
+            <option value="2">2 (8 pro Monat)</option>
+            <option value="3">3 (12 pro Monat)</option>
+            <option value="4">4 (16 pro Monat)</option>
+          </select>
+        </div>
+        <div class="field">
+          <label for="progSalary">Voraussichtliches Jahresgehalt (EUR, optional)</label>
+          <input type="number" id="progSalary" step="100" placeholder="0">
+        </div>
+      </div>
+    </div>
+
+    <div class="card">
+      <h2>Startkapital</h2>
+      <div class="row">
+        <div class="field">
+          <label for="depot">Depotgröße bei Start (EUR)</label>
+          <input type="number" id="depot" value="24500" step="100">
+        </div>
+        <div class="field">
+          <label for="cash">Bargeld bei Start (EUR)</label>
+          <input type="number" id="cash" value="3800" step="100">
+        </div>
+      </div>
+      <div class="result-grid">
+        <div class="stat"><div class="l">Depot aktuell (Start + Buchungen + Trading-G/V)</div><div class="v" id="depotNow">–</div></div>
+        <div class="stat"><div class="l">Bargeld aktuell (Start + Buchungen)</div><div class="v" id="cashNow">–</div></div>
+      </div>
+      <h2 style="margin-top:20px">Ein- und Auszahlungen</h2>
+      <div class="row">
+        <div class="field">
+          <label for="tr-date">Datum</label>
+          <input type="date" id="tr-date">
+        </div>
+        <div class="field">
+          <label for="tr-amount">Betrag (EUR, Auszahlung negativ)</label>
+          <input type="number" id="tr-amount" step="1" placeholder="z.B. 2000 oder -500">
+        </div>
+        <div class="field">
+          <label for="tr-konto">Konto</label>
+          <select id="tr-konto"><option value="depot">Depot</option><option value="cash">Bargeld</option></select>
+        </div>
+        <div class="field">
+          <label for="tr-note">Notiz</label>
+          <input type="text" id="tr-note" placeholder="optional">
+        </div>
+      </div>
+      <div class="toolbar"><button type="button" id="tr-add">Buchung hinzufügen</button></div>
+      <div id="tr-list"></div>
+    </div>
+
+    <div class="card">
+      <h2>Datensicherung</h2>
+      <p class="sub">Deine Einträge liegen im lokalen Speicher dieses Browsers (localStorage) und bleiben beim Schließen und Neuöffnen dieser Datei erhalten - allerdings nur auf diesem Rechner und in diesem Browser. Für eine echte Datei auf deiner Festplatte nutze Export und Import.</p>
+      <div class="toolbar">
+        <button class="secondary" id="export-btn">Als JSON-Datei exportieren</button>
+        <button class="secondary" id="import-btn">JSON-Datei importieren</button>
+        <input type="file" id="import-file" accept="application/json" class="hidden">
+      </div>
+    </div>
+  </div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+(function(){
+"use strict";
+
+const STORAGE_KEY = "tradingJournal_v2";
+const OLD_GEWINN_TRADES_KEY = "tradingJournalEntries";
+const OLD_GEWINN_SETTINGS_KEY = "tradingJournalSettings";
+const OLD_SL_KEY = "sl_disziplin_journal_v1";
+const KATIE_FRAGEN_IDS = ["q1","q2","q3","q4"];
+const DEFAULT_GEDANKE = "Ein Stop Loss nimmt mir meinen Gewinn weg.";
+const DEFAULT_REFRAME = "Ich schütze mein Kapital, indem ich bei jedem Trade einen SL setze.";
+
+const DEFAULT_STATE = {
+  trades: [],
+  rituals: [],
+  transfers: [],
+  settings: {
+    baseline_monat: "2026-10",
+    ziel_start_monat: "2026-11",
+    depot: "24500",
+    cash: "3800",
+    progSalary: "",
+    progDaily: "",
+    progDaysPerWeek: "3",
+    progMonths: "63",
+    progManuallyEdited: false
+  }
+};
+
+function uuid(){
+  if(crypto.randomUUID) return crypto.randomUUID();
+  return "xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx".replace(/[xy]/g, c=>{
+    const r = Math.random()*16|0, v = c==="x"?r:(r&0x3|0x8);
+    return v.toString(16);
+  });
+}
+
+function migrateFromOldApps(){
+  const trades = [];
+  const rituals = [];
+  let settings = {};
+
+  try{
+    const rawGewinn = localStorage.getItem(OLD_GEWINN_TRADES_KEY);
+    if(rawGewinn){
+      const old = JSON.parse(rawGewinn);
+      if(Array.isArray(old)){
+        old.forEach(t=>{
+          trades.push({
+            id: uuid(), date: t.date, symbol: "", amount: t.amount||0,
+            sl_gesetzt: null, sl_stand: null, notiz: t.note||"",
+            created_at: new Date(t.id||Date.now()).toISOString()
+          });
+        });
+      }
+    }
+    const rawGewinnSettings = localStorage.getItem(OLD_GEWINN_SETTINGS_KEY);
+    if(rawGewinnSettings){
+      const s = JSON.parse(rawGewinnSettings);
+      Object.assign(settings, {
+        depot: s.depot, cash: s.cash,
+        progSalary: s.progSalary, progDaily: s.progDaily,
+        progManuallyEdited: s.progManuallyEdited
+      });
+    }
+  }catch(e){}
+
+  try{
+    const rawSl = localStorage.getItem(OLD_SL_KEY);
+    if(rawSl){
+      const old = JSON.parse(rawSl);
+      (old.trades||[]).forEach(t=>{
+        trades.push({
+          id: t.id || uuid(), date: t.date, symbol: t.symbol||"",
+          amount: 0, sl_gesetzt: !!t.sl_gesetzt, sl_stand: !!t.sl_stand,
+          notiz: t.notiz||"", created_at: t.created_at || new Date().toISOString()
+        });
+      });
+      (old.rituals||[]).forEach(r=>{
+        rituals.push({
+          id: r.id || uuid(), date: r.date, gedanke: DEFAULT_GEDANKE,
+          antworten: r.antworten || ["","","",""],
+          reframe: DEFAULT_REFRAME,
+          reframe_bestaetigt: !!r.reframe_bestaetigt,
+          created_at: r.created_at || new Date().toISOString()
+        });
+      });
+      if(old.settings){
+        settings.baseline_monat = old.settings.baseline_monat;
+        settings.ziel_start_monat = old.settings.ziel_start_monat;
+      }
+    }
+  }catch(e){}
+
+  if(!trades.length && !rituals.length && !Object.keys(settings).length) return null;
+  return { trades, rituals, settings };
+}
+
+function loadState(){
+  try{
+    const raw = localStorage.getItem(STORAGE_KEY);
+    if(raw){
+      const parsed = JSON.parse(raw);
+      return {
+        trades: Array.isArray(parsed.trades) ? parsed.trades : [],
+        rituals: Array.isArray(parsed.rituals) ? parsed.rituals : [],
+        transfers: Array.isArray(parsed.transfers) ? parsed.transfers : [],
+        settings: Object.assign({}, DEFAULT_STATE.settings, parsed.settings||{})
+      };
+    }
+    const migrated = migrateFromOldApps();
+    if(migrated){
+      const merged = {
+        trades: migrated.trades,
+        rituals: migrated.rituals,
+        transfers: [],
+        settings: Object.assign({}, DEFAULT_STATE.settings, migrated.settings)
+      };
+      saveStateObj(merged);
+      return merged;
+    }
+    return structuredClone(DEFAULT_STATE);
+  }catch(e){
+    console.error("Konnte gespeicherte Daten nicht lesen, starte leer.", e);
+    return structuredClone(DEFAULT_STATE);
+  }
+}
+function saveStateObj(s){
+  try{ localStorage.setItem(STORAGE_KEY, JSON.stringify(s)); }catch(e){}
+}
+function saveState(){ saveStateObj(state); }
+
+let state = loadState();
+let migratedJustNow = !localStorage.getItem(STORAGE_KEY+"_seen");
+
+const fmt = n => n.toLocaleString('de-DE', {style:'currency', currency:'EUR', maximumFractionDigits:0});
+const fmt2 = n => n.toLocaleString('de-DE', {style:'currency', currency:'EUR', maximumFractionDigits:2});
+const dfmt = d => d.toLocaleDateString('de-DE', {day:'2-digit', month:'2-digit', year:'numeric'});
+function addMonths(date, n){ const d=new Date(date); d.setMonth(d.getMonth()+n); return d; }
+function todayIso(){
+  const d = new Date();
+  return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
+}
+function esc(s){ return String(s??"").replace(/[&<>"']/g, c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c])); }
+function setSign(el,val){ el.classList.remove('pos','neg'); el.classList.add(val>=0?'pos':'neg'); }
+function showToast(msg){
+  const t = document.getElementById('toast');
+  t.textContent = msg; t.classList.add('show');
+  setTimeout(()=>t.classList.remove('show'), 2200);
+}
+
+// ---------------------------------------------------------------
+// Kennzahlen
+// ---------------------------------------------------------------
+function computeKR1(trades){
+  const relevant = trades.filter(t=>t.sl_gesetzt!==null && t.sl_gesetzt!==undefined);
+  if(!relevant.length) return {quote:null,n:0,gesetzt:0};
+  const gesetzt = relevant.filter(t=>t.sl_gesetzt).length;
+  return {quote: Math.round(1000*gesetzt/relevant.length)/10, n:relevant.length, gesetzt};
+}
+function computeKR2(trades, settings){
+  const baselineMonat = settings.baseline_monat || "2026-10";
+  const zielStart = settings.ziel_start_monat || "2026-11";
+  const alleMitSl = trades.filter(t=>t.sl_gesetzt);
+  const gesamtVerschoben = alleMitSl.filter(t=>!t.sl_stand).length;
+  const baselineTrades = trades.filter(t=>(t.date||"").startsWith(baselineMonat));
+  const baselineVerschoben = baselineTrades.filter(t=>t.sl_gesetzt && !t.sl_stand).length;
+  const zielTrades = trades.filter(t=>(t.date||"")>=zielStart+"-01" && t.sl_gesetzt);
+  const zielVerschoben = zielTrades.filter(t=>!t.sl_stand).length;
+  return {
+    gesamt_anzahl: alleMitSl.length, gesamt_verschoben: gesamtVerschoben,
+    baseline_monat: baselineMonat, baseline_anzahl: baselineTrades.length, baseline_verschoben: baselineVerschoben,
+    ziel_start: zielStart, ziel_anzahl: zielTrades.length, ziel_verschoben: zielVerschoben,
+    ziel_ok: zielVerschoben===0 && zielTrades.length>0
+  };
+}
+function computeKR3(rituals){
+  const datesSet = new Set(rituals.map(r=>r.date));
+  const today = new Date();
+  let streak = 0;
+  const cursor = new Date(today);
+  while(true){
+    const iso = `${cursor.getFullYear()}-${String(cursor.getMonth()+1).padStart(2,'0')}-${String(cursor.getDate()).padStart(2,'0')}`;
+    if(datesSet.has(iso)){ streak++; cursor.setDate(cursor.getDate()-1); } else break;
+  }
+  const thisMonthPrefix = `${today.getFullYear()}-${String(today.getMonth()+1).padStart(2,'0')}`;
+  const thisMonthDone = [...datesSet].filter(d=>d.startsWith(thisMonthPrefix)).length;
+  return {streak, heute_erledigt: datesSet.has(todayIso()), this_month_done: thisMonthDone, total_done: datesSet.size};
+}
+function tradeStats(){
+  const wins = state.trades.filter(t=>t.amount>0);
+  const losses = state.trades.filter(t=>t.amount<0);
+  const avgWin = wins.length ? wins.reduce((s,t)=>s+t.amount,0)/wins.length : 0;
+  const avgLoss = losses.length ? losses.reduce((s,t)=>s+t.amount,0)/losses.length : 0;
+  const winRate = state.trades.length ? (wins.length/state.trades.length*100) : 0;
+  return {wins, losses, avgWin, avgLoss, winRate};
+}
+function sumAll(){ return state.trades.reduce((s,t)=>s+(t.amount||0),0); }
+function sumSince(daysAgo){
+  const cutoff = new Date(); cutoff.setHours(0,0,0,0); cutoff.setDate(cutoff.getDate()-daysAgo);
+  return state.trades.filter(t=>new Date(t.date)>=cutoff).reduce((s,t)=>s+(t.amount||0),0);
+}
+function sumThisMonth(){
+  const now = new Date();
+  return state.trades.filter(t=>{const d=new Date(t.date); return d.getFullYear()===now.getFullYear() && d.getMonth()===now.getMonth();}).reduce((s,t)=>s+(t.amount||0),0);
+}
+function sumThisYear(){
+  const now = new Date();
+  return state.trades.filter(t=>new Date(t.date).getFullYear()===now.getFullYear()).reduce((s,t)=>s+(t.amount||0),0);
+}
+function sumToday(){
+  const today = todayIso();
+  return state.trades.filter(t=>t.date===today).reduce((s,t)=>s+(t.amount||0),0);
+}
+// Depot/Bargeld-Felder = Startwerte; Ein-/Auszahlungen kommen aus state.transfers, Trading-G/V geht ins Depot.
+function transferSum(konto){
+  return (state.transfers||[]).filter(t=>t.konto===konto).reduce((s,t)=>s+(t.amount||0),0);
+}
+function depotStart(){ return (parseFloat(state.settings.depot)||0) + transferSum('depot'); }
+function cashNow(){ return (parseFloat(state.settings.cash)||0) + transferSum('cash'); }
+function depotNow(){ return depotStart() + sumAll(); }
+function startCapital(){ return depotStart() + cashNow(); }
+function avgPerTradingDay(){
+  const distinctDays = new Set(state.trades.map(t=>t.date));
+  if(!distinctDays.size) return 0;
+  return sumAll() / distinctDays.size;
+}
+
+// Handelstage-Planung: Soll pro Monat = Tage/Woche x 4 (3 -> 12).
+function daysPerWeek(){
+  const v = parseInt(state.settings.progDaysPerWeek,10);
+  return (v>=1 && v<=5) ? v : 3;
+}
+function progMonths(){
+  const v = parseInt(state.settings.progMonths,10);
+  return (v>=1 && v<=600) ? v : 63;
+}
+function monthlyTradingDays(){ return daysPerWeek()*4; }
+// Handelstage im laufenden Monat: bereits eingetragen + noch mögliche (Rest-Werktage/5 x Tage/Woche), gedeckelt aufs Monatssoll.
+function currentMonthDays(){
+  const now = new Date();
+  const ym = todayIso().slice(0,7);
+  const done = new Set(state.trades.filter(t=>(t.date||"").startsWith(ym)).map(t=>t.date)).size;
+  const todayDone = state.trades.some(t=>t.date===todayIso());
+  const lastDay = new Date(now.getFullYear(), now.getMonth()+1, 0).getDate();
+  let weekdays = 0;
+  for(let d=now.getDate()+(todayDone?1:0); d<=lastDay; d++){
+    const wd = new Date(now.getFullYear(), now.getMonth(), d).getDay();
+    if(wd!==0 && wd!==6) weekdays++;
+  }
+  const remaining = Math.round(weekdays/5*daysPerWeek());
+  const target = monthlyTradingDays();
+  const total = Math.max(done, Math.min(target, done+remaining));
+  return {done, remaining: total-done, total, target};
+}
+
+// ---------------------------------------------------------------
+// Ritual
+// ---------------------------------------------------------------
+function renderRitual(){
+  const today = todayIso();
+  document.getElementById('ritual-title').textContent = `Ritual · ${today}`;
+  const existing = state.rituals.find(r=>r.date===today);
+  const notice = document.getElementById('ritual-notice');
+  notice.innerHTML = existing ? '<div class="notice">Für heute liegt bereits ein Eintrag vor. Ein erneutes Absenden ersetzt ihn.</div>' : '';
+
+  const lastRitual = [...state.rituals].sort((a,b)=>b.date.localeCompare(a.date))[0];
+  document.getElementById('r-gedanke').value = existing ? (existing.gedanke||'') : (lastRitual ? lastRitual.gedanke : DEFAULT_GEDANKE);
+  document.getElementById('r-reframe').value = existing ? (existing.reframe||'') : (lastRitual ? lastRitual.reframe : DEFAULT_REFRAME);
+  KATIE_FRAGEN_IDS.forEach((id,i)=>{
+    document.getElementById(id).value = existing ? (existing.antworten[i]||'') : '';
+  });
+  document.getElementById('reframe_bestaetigt').checked = existing ? !!existing.reframe_bestaetigt : false;
+}
+
+// ---------------------------------------------------------------
+// Trades
+// ---------------------------------------------------------------
+function renderTrades(){
+  document.getElementById('t-date').value = todayIso();
+  const showNotes = state.settings.showNotes !== false;
+  document.getElementById('t-show-notes').checked = showNotes;
+  document.getElementById('all-trades').classList.toggle('hide-notes', !showNotes);
+  const sorted = [...state.trades].sort((a,b)=>(b.date+b.created_at).localeCompare(a.date+a.created_at));
+  const ritualDays = new Set(state.rituals.map(r=>r.date));
+  const container = document.getElementById('all-trades');
+  container.innerHTML = sorted.length ? `
+    <table><thead><tr><th>Datum</th><th>Symbol</th><th>G/V</th><th>SL gesetzt</th><th>SL stand</th><th class="col-notiz">Notiz</th><th></th></tr></thead>
+    <tbody>${sorted.map(t=>`
+      <tr${ritualDays.has(t.date)?'':' class="no-ritual" title="Ritual an diesem Tag nicht durchgeführt"'}>
+        <td>${esc(t.date)}</td>
+        <td>${esc(t.symbol)||'–'}</td>
+        <td class="${(t.amount||0)>=0?'pos':'neg'}">${fmt2(t.amount||0)}</td>
+        <td class="${t.sl_gesetzt===null||t.sl_gesetzt===undefined?'muted':(t.sl_gesetzt?'good':'bad')}">${t.sl_gesetzt===null||t.sl_gesetzt===undefined?'–':(t.sl_gesetzt?'Ja':'Nein')}</td>
+        <td class="${t.sl_gesetzt? (t.sl_stand?'good':'bad') : 'muted'}">${t.sl_gesetzt ? (t.sl_stand?'Ja':'Nein') : '–'}</td>
+        <td class="col-notiz" style="text-align:left; color:var(--muted)">${esc(t.notiz)}</td>
+        <td><button class="danger" data-delete="${esc(t.id)}">✕</button></td>
+      </tr>`).join('')}</tbody></table>` : '<div class="empty">Noch keine Trades im Journal.</div>';
+
+  container.querySelectorAll('[data-delete]').forEach(btn=>{
+    btn.addEventListener('click', ()=>{
+      if(!confirm('Trade wirklich löschen?')) return;
+      state.trades = state.trades.filter(t=>t.id!==btn.dataset.delete);
+      saveState();
+      renderTrades();
+    });
+  });
+}
+
+// ---------------------------------------------------------------
+// Prognose
+// ---------------------------------------------------------------
+const depotEl = document.getElementById('depot');
+const cashEl = document.getElementById('cash');
+const progDailyEl = document.getElementById('progDaily');
+const progSalaryEl = document.getElementById('progSalary');
+const progMonthsEl = document.getElementById('progMonths');
+
+let progFinalValue = 0;
+let progTradingTotal = 0;
+
+function renderTransfers(){
+  document.getElementById('depotNow').textContent = fmt2(depotNow());
+  document.getElementById('cashNow').textContent = fmt2(cashNow());
+  const list = [...state.transfers].sort((a,b)=>b.date.localeCompare(a.date));
+  const box = document.getElementById('tr-list');
+  box.innerHTML = list.length ? `<table><thead><tr><th>Datum</th><th>Konto</th><th>Betrag</th><th>Notiz</th><th></th></tr></thead>
+    <tbody>${list.map(t=>`<tr>
+      <td>${esc(t.date)}</td><td>${t.konto==='cash'?'Bargeld':'Depot'}</td>
+      <td class="${t.amount>=0?'pos':'neg'}">${fmt2(t.amount)}</td>
+      <td style="text-align:left; color:var(--muted)">${esc(t.note)}</td>
+      <td><button class="danger" data-tr-delete="${esc(t.id)}">✕</button></td></tr>`).join('')}</tbody></table>` : '';
+  box.querySelectorAll('[data-tr-delete]').forEach(btn=>btn.addEventListener('click', ()=>{
+    if(!confirm('Buchung wirklich löschen?')) return;
+    state.transfers = state.transfers.filter(t=>t.id!==btn.dataset.trDelete);
+    saveState(); renderProg();
+  }));
+}
+
+function renderProg(){
+  renderTransfers();
+  const N = progMonths();
+  document.querySelectorAll('.mN').forEach(e=>{ e.textContent = N; });
+  if(!state.settings.progManuallyEdited){
+    progDailyEl.value = avgPerTradingDay().toFixed(2);
+  }
+  const progDaily = parseFloat(progDailyEl.value) || 0;
+  const salaryYearly = parseFloat(progSalaryEl.value) || 0;
+  const salaryMonthly = salaryYearly/12;
+  const cm = currentMonthDays();
+  const monthlyGain = progDaily*monthlyTradingDays();
+  const restGain = progDaily*cm.remaining;
+  const totalGain = restGain + monthlyGain*N;
+  const salaryTotal = salaryMonthly*N;
+  document.getElementById('progDaysWeek').value = daysPerWeek();
+  document.getElementById('progMonthlyLabel').textContent = `Trading-Gewinn/Monat (${monthlyTradingDays()} Handelstage)`;
+  const monthSumEl = document.getElementById('progMonthSum');
+  const monthSum = sumThisMonth();
+  monthSumEl.textContent = fmt2(monthSum); setSign(monthSumEl, monthSum);
+  const current = startCapital() + sumAll();
+  const final = current + totalGain + salaryTotal;
+  progFinalValue = final;
+  progTradingTotal = totalGain;
+  const today = new Date();
+  const endDate = addMonths(today, N);
+
+  const monthlyEl = document.getElementById('progMonthly');
+  monthlyEl.textContent = fmt2(monthlyGain); setSign(monthlyEl, monthlyGain);
+  document.getElementById('progSalaryMonthly').textContent = fmt2(salaryMonthly);
+  document.getElementById('progEndDate').textContent = dfmt(endDate);
+  document.getElementById('progStart').textContent = fmt2(current);
+  const totalEl = document.getElementById('progTotal');
+  totalEl.textContent = fmt2(totalGain); setSign(totalEl, totalGain);
+  document.getElementById('progSalaryTotal').textContent = fmt2(salaryTotal);
+  const finalEl = document.getElementById('progFinal');
+  finalEl.textContent = fmt2(final); setSign(finalEl, final);
+  document.getElementById('progFinalBox').style.borderColor = final>=current ? 'var(--pos)' : 'var(--neg)';
+
+  const body = document.getElementById('progBody');
+  body.innerHTML = '';
+  for(let m=1;m<=N;m++){
+    const d = addMonths(today, m);
+    const cumTrading = restGain + monthlyGain*m;
+    const cumSalary = salaryMonthly*m;
+    const total = current+cumTrading+cumSalary;
+    const tr = document.createElement('tr');
+    tr.innerHTML = `<td>${m}</td><td>${dfmt(d)}</td>
+      <td class="${cumTrading>=0?'pos':'neg'}">${fmt2(cumTrading)}</td>
+      <td class="pos">${fmt2(cumSalary)}</td>
+      <td class="${total>=0?'pos':'neg'}">${fmt2(total)}</td>`;
+    body.appendChild(tr);
+  }
+}
+
+function saveProgSettings(){
+  state.settings.depot = depotEl.value;
+  state.settings.cash = cashEl.value;
+  state.settings.progSalary = progSalaryEl.value;
+  state.settings.progDaily = progDailyEl.value;
+  saveState();
+}
+
+// ---------------------------------------------------------------
+// Settings-Tab
+// ---------------------------------------------------------------
+function renderSettings(){
+}
+
+// ---------------------------------------------------------------
+// View switching
+// ---------------------------------------------------------------
+function openSettings(){ renderSettings(); document.getElementById('settings-modal').classList.remove('hidden'); }
+function closeSettings(){ document.getElementById('settings-modal').classList.add('hidden'); }
+document.getElementById('gear-btn').addEventListener('click', openSettings);
+document.getElementById('gear-close').addEventListener('click', closeSettings);
+document.getElementById('settings-modal').addEventListener('click', e=>{ if(e.target.id==='settings-modal') closeSettings(); });
+document.addEventListener('keydown', e=>{ if(e.key==='Escape') closeSettings(); });
+function switchView(name){
+  document.querySelectorAll('.view').forEach(v=>v.classList.remove('active'));
+  document.getElementById(`view-${name}`).classList.add('active');
+  document.querySelectorAll('.links button').forEach(b=>b.classList.toggle('active', b.dataset.view===name));
+  if(name==='ritual') renderRitual();
+  if(name==='trades') renderTrades();
+  if(name==='prognose'){ depotEl.value=state.settings.depot; cashEl.value=state.settings.cash; progSalaryEl.value=state.settings.progSalary; progMonthsEl.value=state.settings.progMonths; if(state.settings.progManuallyEdited) progDailyEl.value=state.settings.progDaily; renderProg(); }
+}
+
+document.querySelectorAll('.links button').forEach(btn=>btn.addEventListener('click', ()=>switchView(btn.dataset.view)));
+document.querySelectorAll('[data-view]').forEach(btn=>{
+  if(!btn.closest('.links')) btn.addEventListener('click', ()=>switchView(btn.dataset.view));
+});
+
+document.getElementById('ritual-form').addEventListener('submit', e=>{
+  e.preventDefault();
+  const today = todayIso();
+  const eintrag = {
+    id: uuid(), date: today,
+    gedanke: document.getElementById('r-gedanke').value.trim() || DEFAULT_GEDANKE,
+    antworten: KATIE_FRAGEN_IDS.map(id=>document.getElementById(id).value.trim()),
+    reframe: document.getElementById('r-reframe').value.trim() || DEFAULT_REFRAME,
+    reframe_bestaetigt: document.getElementById('reframe_bestaetigt').checked,
+    created_at: new Date().toISOString()
+  };
+  state.rituals = state.rituals.filter(r=>r.date!==today);
+  state.rituals.push(eintrag);
+  saveState();
+  showToast('Ritual für heute gespeichert.');
+  switchView('trades');
+});
+
+document.getElementById('trade-form').addEventListener('submit', e=>{
+  e.preventDefault();
+  const slGesetzt = document.getElementById('t-sl-gesetzt').checked;
+  const amount = parseFloat(document.getElementById('t-amount').value);
+  if(isNaN(amount)) return;
+  const eintrag = {
+    id: uuid(),
+    date: document.getElementById('t-date').value || todayIso(),
+    symbol: document.getElementById('t-symbol').value,
+    amount, sl_gesetzt: slGesetzt,
+    sl_stand: slGesetzt ? document.getElementById('t-sl-stand').checked : false,
+    notiz: document.getElementById('t-notiz').value.trim(),
+    created_at: new Date().toISOString()
+  };
+  state.trades.push(eintrag);
+  saveState();
+  showToast('Trade gespeichert.');
+  document.getElementById('trade-form').reset();
+  document.getElementById('t-date').value = todayIso();
+  document.getElementById('t-sl-gesetzt').checked = true;
+  document.getElementById('t-sl-stand').checked = true;
+  renderTrades();
+});
+
+
+[depotEl, cashEl].forEach(el=>el.addEventListener('input', ()=>{ renderProg(); saveProgSettings(); }));
+progDailyEl.addEventListener('input', ()=>{ state.settings.progManuallyEdited = true; renderProg(); saveProgSettings(); });
+document.getElementById('t-show-notes').addEventListener('change', e=>{
+  state.settings.showNotes = e.target.checked;
+  saveState();
+  document.getElementById('all-trades').classList.toggle('hide-notes', !e.target.checked);
+});
+document.getElementById('tr-date').value = todayIso();
+document.getElementById('tr-add').addEventListener('click', ()=>{
+  const amount = parseFloat(document.getElementById('tr-amount').value);
+  if(isNaN(amount) || amount===0) return;
+  state.transfers.push({
+    id: uuid(),
+    date: document.getElementById('tr-date').value || todayIso(),
+    amount,
+    konto: document.getElementById('tr-konto').value,
+    note: document.getElementById('tr-note').value.trim()
+  });
+  saveState();
+  document.getElementById('tr-amount').value = '';
+  document.getElementById('tr-note').value = '';
+  showToast('Buchung gespeichert.');
+  renderProg();
+});
+document.getElementById('progDailyReset').addEventListener('click', ()=>{ state.settings.progManuallyEdited = false; renderProg(); saveProgSettings(); });
+progMonthsEl.addEventListener('input', ()=>{ state.settings.progMonths = progMonthsEl.value; renderProg(); saveState(); });
+progSalaryEl.addEventListener('input', ()=>{ renderProg(); saveProgSettings(); });
+document.getElementById('progDaysWeek').addEventListener('change', e=>{ state.settings.progDaysPerWeek = e.target.value; renderProg(); saveProgSettings(); });
+
+document.getElementById('toggleProg').addEventListener('click', ()=>{
+  const table = document.getElementById('progTable');
+  const show = table.classList.contains('hidden');
+  table.classList.toggle('hidden', !show);
+  document.getElementById('toggleProg').textContent = show ? 'Monatsdetails ausblenden ▴' : 'Monatsdetails anzeigen ▾';
+});
+
+document.getElementById('export-btn').addEventListener('click', ()=>{
+  const blob = new Blob([JSON.stringify(state, null, 2)], {type:'application/json'});
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url; a.download = `trading-journal-backup-${todayIso()}.json`;
+  document.body.appendChild(a); a.click(); a.remove();
+  URL.revokeObjectURL(url);
+  showToast('Backup-Datei heruntergeladen.');
+});
+document.getElementById('import-btn').addEventListener('click', ()=>document.getElementById('import-file').click());
+document.getElementById('import-file').addEventListener('change', e=>{
+  const file = e.target.files[0];
+  if(!file) return;
+  const reader = new FileReader();
+  reader.onload = ()=>{
+    try{
+      const parsed = JSON.parse(reader.result);
+      if(!parsed || typeof parsed!=='object') throw new Error('Ungültiges Format');
+      const importedCount = (parsed.trades||[]).length + (parsed.rituals||[]).length;
+      if(!confirm(`Datei enthält ${importedCount} Einträge. Aktuelle Daten in diesem Browser überschreiben?`)) return;
+      state = {
+        trades: Array.isArray(parsed.trades) ? parsed.trades : [],
+        rituals: Array.isArray(parsed.rituals) ? parsed.rituals : [],
+        transfers: Array.isArray(parsed.transfers) ? parsed.transfers : [],
+        settings: Object.assign({}, DEFAULT_STATE.settings, parsed.settings||{})
+      };
+      saveState();
+      showToast('Import abgeschlossen.');
+      closeSettings();
+      switchView('ritual');
+    }catch(err){
+      alert('Diese Datei konnte nicht gelesen werden: ' + err.message);
+    }finally{
+      e.target.value = '';
+    }
+  };
+  reader.readAsText(file);
+});
+
+// ---------------------------------------------------------------
+// Start
+// ---------------------------------------------------------------
+depotEl.value = state.settings.depot;
+cashEl.value = state.settings.cash;
+progSalaryEl.value = state.settings.progSalary;
+progMonthsEl.value = state.settings.progMonths;
+if(state.settings.progManuallyEdited) progDailyEl.value = state.settings.progDaily;
+
+if(migratedJustNow && (state.trades.length || state.rituals.length)){
+  localStorage.setItem(STORAGE_KEY+"_seen", "1");
+  showToast('Bestehende Daten aus beiden Journalen zusammengeführt.');
+}
+
+switchView('ritual');
+})();
+</script>
+</body>
+</html>
