@@ -173,6 +173,11 @@
           <input type="number" id="t-amount" step="1" placeholder="z.B. 45 oder -30" required>
         </div>
       </div>
+      <div class="field">
+        <label for="t-stand">Neuer Tagesstand (EUR, optional)</label>
+        <input type="number" id="t-stand" step="any" placeholder="Gesamtstand des Tages nach diesem Trade">
+        <div class="sub" id="t-stand-hint" style="margin-top:6px"></div>
+      </div>
       <div class="field-row">
         <label class="checkbox"><input type="checkbox" id="t-sl-gesetzt" checked> Stop Loss war vor Orderausführung gesetzt</label>
         <label class="checkbox"><input type="checkbox" id="t-sl-stand" checked> Stop Loss stand - wurde nicht verschoben oder ignoriert</label>
@@ -763,6 +768,21 @@ document.getElementById('ritual-form').addEventListener('submit', e=>{
   switchView('trades');
 });
 
+function updateStandHint(){
+  const standEl = document.getElementById('t-stand');
+  const hintEl = document.getElementById('t-stand-hint');
+  const stand = parseFloat(standEl.value);
+  if(isNaN(stand)){ hintEl.textContent = ''; return; }
+  const date = document.getElementById('t-date').value || todayIso();
+  const bisher = state.trades.filter(t=>t.date===date).reduce((s,t)=>s+t.amount, 0);
+  const diff = Math.round((stand - bisher) * 100) / 100;
+  document.getElementById('t-amount').value = diff;
+  const f = n => n.toLocaleString('de-DE', {maximumFractionDigits: 2});
+  hintEl.textContent = `Bisher ${f(bisher)} EUR an diesem Tag, Differenz ${diff > 0 ? '+' : ''}${f(diff)} EUR wird als G/V übernommen.`;
+}
+document.getElementById('t-stand').addEventListener('input', updateStandHint);
+document.getElementById('t-date').addEventListener('change', updateStandHint);
+
 document.getElementById('trade-form').addEventListener('submit', e=>{
   e.preventDefault();
   const slGesetzt = document.getElementById('t-sl-gesetzt').checked;
@@ -781,6 +801,7 @@ document.getElementById('trade-form').addEventListener('submit', e=>{
   saveState();
   showToast('Trade gespeichert.');
   document.getElementById('trade-form').reset();
+  document.getElementById('t-stand-hint').textContent = '';
   document.getElementById('t-date').value = todayIso();
   document.getElementById('t-sl-gesetzt').checked = true;
   document.getElementById('t-sl-stand').checked = true;
