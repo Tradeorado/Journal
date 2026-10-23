@@ -198,13 +198,13 @@
 
   <!-- PROGNOSE -->
   <section id="view-prognose" class="view">
-    <h1>Vom Trade zu <span class="mN">63</span> Monaten</h1>
+    <h1>Vom Trade zu <span class="mN">60</span> Monaten</h1>
     <div class="sub">Klein und stetig schlägt groß und riskant. Chunking zeigt das Ausmaß eines einzelnen Trades im großen Bild.</div>
 
     <div class="ruin-flash"><div class="headline">Kein Handel mehr möglich, wenn Verluste dauerhaft ein Vielfaches der Gewinne übersteigen!</div></div>
 
     <div class="card">
-      <h2>Prognose: diszipliniert bis in <span class="mN">63</span> Monate</h2>
+      <h2>Prognose: diszipliniert bis in <span class="mN">60</span> Monate</h2>
       <div class="row">
         <div class="field">
           <label for="progDaily">Ø Gewinn pro Handelstag für die Prognose (EUR)</label>
@@ -212,19 +212,19 @@
           <span class="toggle" id="progDailyReset" style="display:inline-block; margin-top:6px">↺ Auf Durchschnitt zurücksetzen</span>
         </div>
       </div>
-      <div class="sub" style="margin-bottom:12px">Trading-Gewinn automatisch aus Journal (Gesamt-G/V ÷ Handelstage), überschreibbar. Gehalt wird als Jahresgehalt ÷ 12 monatlich über <span class="mN">63</span> Monate addiert. Hochrechnung linear, kein Zinseszins.</div>
+      <div class="sub" style="margin-bottom:12px">Trading-Gewinn automatisch aus Journal (Gesamt-G/V ÷ Handelstage), überschreibbar. Gehalt wird als Jahresgehalt ÷ 12 monatlich über <span class="mN">60</span> Monate addiert. Hochrechnung linear, kein Zinseszins.</div>
       <div class="result-grid">
         <div class="stat"><div class="l" id="progMonthlyLabel">Trading-Gewinn/Monat</div><div class="v" id="progMonthly">–</div></div>
         <div class="stat"><div class="l">Gewinn/Verlust diesen Monat (bisher)</div><div class="v" id="progMonthSum">–</div></div>
         <div class="stat"><div class="l">Gehalt/Monat</div><div class="v" id="progSalaryMonthly">–</div></div>
-        <div class="stat"><div class="l">Enddatum (noch <span class="mN">63</span> Monate)</div><div class="v" id="progEndDate">–</div></div>
+        <div class="stat"><div class="l">Enddatum (noch <span class="mN">60</span> Monate)</div><div class="v" id="progEndDate">–</div></div>
         <div class="result-grid" style="grid-column:1/-1; grid-template-columns:repeat(3,minmax(0,1fr)); margin-top:0">
           <div class="stat"><div class="l">Kontostand heute</div><div class="v" id="progStart">–</div></div>
-          <div class="stat"><div class="l">Summe Trading-G/V über <span class="mN">63</span> Monate</div><div class="v" id="progTotal">–</div></div>
-          <div class="stat"><div class="l">Summe Gehalt über <span class="mN">63</span> Monate</div><div class="v" id="progSalaryTotal">–</div></div>
+          <div class="stat"><div class="l">Summe Trading-G/V über <span class="mN">60</span> Monate</div><div class="v" id="progTotal">–</div></div>
+          <div class="stat"><div class="l">Summe Gehalt über <span class="mN">60</span> Monate</div><div class="v" id="progSalaryTotal">–</div></div>
         </div>
         <div class="stat big" id="progFinalBox">
-          <div class="l">Prognostizierter Kontostand nach <span class="mN">63</span> Monaten (Trading + Gehalt)</div>
+          <div class="l">Prognostizierter Kontostand nach <span class="mN">60</span> Monaten (Trading + Gehalt)</div>
           <div class="v" id="progFinal">–</div>
         </div>
       </div>
@@ -247,7 +247,7 @@
       <h2>Prognose-Parameter</h2>
       <div class="row">
         <div class="field">
-          <label for="progEndInput">Enddatum der Prognose (<span class="mN">63</span> Monate ab heute)</label>
+          <label for="progEndInput">Enddatum der Prognose (<span class="mN">60</span> Monate ab heute)</label>
           <input type="date" id="progEndInput">
         </div>
         <div class="field">
@@ -270,11 +270,11 @@
       <div class="row">
         <div class="field">
           <label for="depot">Depotgröße bei Start (EUR)</label>
-          <input type="number" id="depot" value="24500" step="100">
+          <input type="number" id="depot" value="18000" step="100">
         </div>
         <div class="field">
           <label for="cash">Bargeld bei Start (EUR)</label>
-          <input type="number" id="cash" value="3800" step="100">
+          <input type="number" id="cash" value="2500" step="100">
         </div>
       </div>
       <div class="result-grid">
@@ -338,12 +338,12 @@ const DEFAULT_STATE = {
   settings: {
     baseline_monat: "2026-10",
     ziel_start_monat: "2026-11",
-    depot: "24500",
-    cash: "3800",
+    depot: "18000",
+    cash: "2500",
     progSalary: "",
     progDaily: "",
     progDaysPerWeek: "3",
-    progMonths: "63",
+    progMonths: "60",
     progEndDate: "",
     progManuallyEdited: false
   }
@@ -558,7 +558,7 @@ function progEndIso(){
   let s = state.settings.progEndDate;
   if(!/^\d{4}-\d{2}-\d{2}$/.test(s||'')){
     const v = parseInt(state.settings.progMonths,10);
-    const d = addMonths(new Date(), (v>=1 && v<=600) ? v : 63);
+    const d = addMonths(new Date(), (v>=1 && v<=600) ? v : 60);
     s = `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
     state.settings.progEndDate = s;
     saveState();
