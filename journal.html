@@ -217,7 +217,7 @@
         <div class="stat"><div class="l" id="progMonthlyLabel">Trading-Gewinn/Monat</div><div class="v" id="progMonthly">–</div></div>
         <div class="stat"><div class="l">Gewinn/Verlust diesen Monat (bisher)</div><div class="v" id="progMonthSum">–</div></div>
         <div class="stat"><div class="l">Gehalt/Monat</div><div class="v" id="progSalaryMonthly">–</div></div>
-        <div class="stat"><div class="l">Enddatum (+<span class="mN">63</span> Monate)</div><div class="v" id="progEndDate">–</div></div>
+        <div class="stat"><div class="l">Enddatum (noch <span class="mN">63</span> Monate)</div><div class="v" id="progEndDate">–</div></div>
         <div class="result-grid" style="grid-column:1/-1; grid-template-columns:repeat(3,minmax(0,1fr)); margin-top:0">
           <div class="stat"><div class="l">Kontostand heute</div><div class="v" id="progStart">–</div></div>
           <div class="stat"><div class="l">Summe Trading-G/V über <span class="mN">63</span> Monate</div><div class="v" id="progTotal">–</div></div>
@@ -247,8 +247,8 @@
       <h2>Prognose-Parameter</h2>
       <div class="row">
         <div class="field">
-          <label for="progMonths">Anzahl Monate</label>
-          <input type="number" id="progMonths" step="1" min="1" max="600">
+          <label for="progEndInput">Enddatum der Prognose (<span class="mN">63</span> Monate ab heute)</label>
+          <input type="date" id="progEndInput">
         </div>
         <div class="field">
           <label for="progDaysWeek">Handelstage pro Woche (Monat = Woche × 4)</label>
@@ -344,6 +344,7 @@ const DEFAULT_STATE = {
     progDaily: "",
     progDaysPerWeek: "3",
     progMonths: "63",
+    progEndDate: "",
     progManuallyEdited: false
   }
 };
@@ -552,9 +553,25 @@ function daysPerWeek(){
   const v = parseInt(state.settings.progDaysPerWeek,10);
   return (v>=1 && v<=5) ? v : 3;
 }
+// Enddatum der Prognose (YYYY-MM-DD). Fehlt es (Altbestand), wird es einmalig aus der bisherigen Monatszahl ab heute festgelegt.
+function progEndIso(){
+  let s = state.settings.progEndDate;
+  if(!/^\d{4}-\d{2}-\d{2}$/.test(s||'')){
+    const v = parseInt(state.settings.progMonths,10);
+    const d = addMonths(new Date(), (v>=1 && v<=600) ? v : 63);
+    s = `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
+    state.settings.progEndDate = s;
+    saveState();
+  }
+  return s;
+}
+// Volle Monate von heute bis zum Enddatum, begrenzt auf 1 bis 600.
 function progMonths(){
-  const v = parseInt(state.settings.progMonths,10);
-  return (v>=1 && v<=600) ? v : 63;
+  const [y,m,d] = progEndIso().split('-').map(Number);
+  const t = new Date();
+  let n = (y - t.getFullYear())*12 + (m - 1 - t.getMonth());
+  if(d < t.getDate()) n--;
+  return Math.min(600, Math.max(1, n));
 }
 function monthlyTradingDays(){ return daysPerWeek()*4; }
 // Handelstage im laufenden Monat: bereits eingetragen + noch mögliche (Rest-Werktage/5 x Tage/Woche), gedeckelt aufs Monatssoll.
@@ -635,7 +652,7 @@ const depotEl = document.getElementById('depot');
 const cashEl = document.getElementById('cash');
 const progDailyEl = document.getElementById('progDaily');
 const progSalaryEl = document.getElementById('progSalary');
-const progMonthsEl = document.getElementById('progMonths');
+const progEndEl = document.getElementById('progEndInput');
 
 let progFinalValue = 0;
 let progTradingTotal = 0;
@@ -683,7 +700,8 @@ function renderProg(){
   progFinalValue = final;
   progTradingTotal = totalGain;
   const today = new Date();
-  const endDate = addMonths(today, N);
+  const [ey,em,ed] = progEndIso().split('-').map(Number);
+  const endDate = new Date(ey, em-1, ed);
 
   const monthlyEl = document.getElementById('progMonthly');
   monthlyEl.textContent = fmt2(monthlyGain); setSign(monthlyEl, monthlyGain);
@@ -742,7 +760,7 @@ function switchView(name){
   document.querySelectorAll('.links button').forEach(b=>b.classList.toggle('active', b.dataset.view===name));
   if(name==='ritual') renderRitual();
   if(name==='trades') renderTrades();
-  if(name==='prognose'){ depotEl.value=state.settings.depot; cashEl.value=state.settings.cash; progSalaryEl.value=state.settings.progSalary; progMonthsEl.value=state.settings.progMonths; if(state.settings.progManuallyEdited) progDailyEl.value=state.settings.progDaily; renderProg(); }
+  if(name==='prognose'){ depotEl.value=state.settings.depot; cashEl.value=state.settings.cash; progSalaryEl.value=state.settings.progSalary; progEndEl.value=progEndIso(); if(state.settings.progManuallyEdited) progDailyEl.value=state.settings.progDaily; renderProg(); }
 }
 
 document.querySelectorAll('.links button').forEach(btn=>btn.addEventListener('click', ()=>switchView(btn.dataset.view)));
@@ -834,7 +852,11 @@ document.getElementById('tr-add').addEventListener('click', ()=>{
   renderProg();
 });
 document.getElementById('progDailyReset').addEventListener('click', ()=>{ state.settings.progManuallyEdited = false; renderProg(); saveProgSettings(); });
-progMonthsEl.addEventListener('input', ()=>{ state.settings.progMonths = progMonthsEl.value; renderProg(); saveState(); });
+progEndEl.addEventListener('change', ()=>{
+  if(!progEndEl.value) return;
+  state.settings.progEndDate = progEndEl.value;
+  renderProg(); saveState();
+});
 progSalaryEl.addEventListener('input', ()=>{ renderProg(); saveProgSettings(); });
 document.getElementById('progDaysWeek').addEventListener('change', e=>{ state.settings.progDaysPerWeek = e.target.value; renderProg(); saveProgSettings(); });
 
@@ -890,7 +912,7 @@ document.getElementById('import-file').addEventListener('change', e=>{
 depotEl.value = state.settings.depot;
 cashEl.value = state.settings.cash;
 progSalaryEl.value = state.settings.progSalary;
-progMonthsEl.value = state.settings.progMonths;
+progEndEl.value = progEndIso();
 if(state.settings.progManuallyEdited) progDailyEl.value = state.settings.progDaily;
 
 if(migratedJustNow && (state.trades.length || state.rituals.length)){
